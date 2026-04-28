@@ -60,7 +60,13 @@ This repository now supports **one official deployment mode only**:
 - Layer 3: App Proxy (Nginx)
 - Application/Data Stack: Gitea + PostgreSQL + Redis
 
+### Topology Diagram (Primary)
+
 ![Three Layer Reverse Proxy Architecture](docs/images/Three-Layer-Reverse-Proxy-Architecture.png)
+
+### Topology Diagram (Alternate)
+
+![Topology Final](docs/images/topology-final.png)
 
 ### External Proxy Note
 

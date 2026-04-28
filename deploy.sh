@@ -8,6 +8,74 @@ log()  { printf '\033[1;34m[deploy]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*"; }
 err()  { printf '\033[1;31m[error]\033[0m %s\n' "$*"; }
 
+get_env_value() {
+  local key="$1"
+  local line
+  line="$(grep -E "^${key}=" .env | tail -n1 || true)"
+  printf '%s' "${line#*=}"
+}
+
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  local escaped
+  escaped="${value//&/\\&}"
+
+  if grep -qE "^${key}=" .env; then
+    sed -i "s|^${key}=.*|${key}=${escaped}|" .env
+  else
+    printf '\n%s=%s\n' "$key" "$value" >> .env
+  fi
+}
+
+is_placeholder_or_empty() {
+  local value="$1"
+  [[ -z "$value" ]] && return 0
+  [[ "$value" == REPLACE_WITH_* ]] && return 0
+  [[ "$value" == \"REPLACE_WITH_* ]] && return 0
+  return 1
+}
+
+generate_b64() {
+  local bytes="$1"
+  openssl rand -base64 "$bytes" | tr -d '\n'
+}
+
+ensure_env_secrets() {
+  local generated_any=0
+
+  # key|openssl_bytes
+  local specs=(
+    "GITEA_SECRET_KEY|48"
+    "GITEA_INTERNAL_TOKEN|64"
+    "GITEA_JWT_SECRET|32"
+    "GITEA_LFS_JWT_SECRET|32"
+    "POSTGRES_PASSWORD|24"
+    "REDIS_PASSWORD|24"
+  )
+
+  for spec in "${specs[@]}"; do
+    local key bytes current new_value
+    key="${spec%%|*}"
+    bytes="${spec##*|}"
+    current="$(get_env_value "$key")"
+
+    if is_placeholder_or_empty "$current"; then
+      require_cmd openssl
+      new_value="$(generate_b64 "$bytes")"
+      set_env_value "$key" "$new_value"
+      generated_any=1
+      log "Generated secret for: $key"
+    else
+      log "Keep existing secret: $key"
+    fi
+  done
+
+  if [[ "$generated_any" -eq 1 ]]; then
+    warn "Some secrets/passwords were auto-generated and written to .env"
+  fi
+}
+
 ensure_dir() {
   local dir="$1"
   if [[ -d "$dir" ]]; then
@@ -88,12 +156,15 @@ if [[ ! -f ".env" ]]; then
   if [[ -f ".env.example" ]]; then
     warn "File .env not found, creating from .env.example"
     cp .env.example .env
-    warn "Please review .env values (domain/password/secrets) after deployment."
+    warn "Created .env from template; secrets/passwords will be auto-filled if placeholders are found."
   else
     err "File .env and .env.example are both missing."
     exit 1
   fi
 fi
+
+log "Ensuring .env secrets/passwords are set..."
+ensure_env_secrets
 
 log "Ensuring runtime directories (.gitignore paths)..."
 ensure_dir "postgres-data"
