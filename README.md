@@ -68,6 +68,45 @@ This repository now supports **one official deployment mode only**:
 
 ![Topology Final](docs/images/topology-final.png)
 
+### Layer-by-Layer Explanation
+
+1. **Layer 1 — Cloudflare (Optional)**
+	- Acts as DNS + edge protection (DDoS/WAF/CDN depending on your plan).
+	- Terminates public TLS from internet clients.
+	- Forwards traffic to your external reverse proxy (NPM) or directly to this server.
+
+2. **Layer 2 — External NPM (Optional)**
+	- Runs on a separate server from this repository stack.
+	- Central place for SSL certificate management and virtual host routing.
+	- Forwards incoming requests to this app server (`:80` recommended, `:443` optional).
+
+3. **Layer 3 — App Proxy (Nginx in this stack)**
+	- Main HTTP/HTTPS gateway inside this deployment.
+	- Applies proxy headers, timeouts, and request handling policy.
+	- Routes app traffic to Gitea internal service on `gitea:3000`.
+
+4. **Application/Data Stack — Gitea + PostgreSQL + Redis**
+	- **Gitea** handles web UI, git smart HTTP, API, and repository operations.
+	- **PostgreSQL** stores relational data (users, repos metadata, issues, settings).
+	- **Redis** handles cache/session/queue to improve responsiveness and offload DB.
+
+### Request Flow (HTTP/HTTPS)
+
+`Client → Cloudflare (optional) → External NPM (optional) → Nginx → Gitea → PostgreSQL/Redis`
+
+### SSH Flow (Git over SSH)
+
+`Client → Server:2222 → Gitea:22`
+
+This SSH path is independent from HTTP reverse proxy flow, so git clone/push via SSH still works even when web traffic goes through Cloudflare/NPM.
+
+### Why this architecture
+
+- **Separation of concerns:** edge proxy and app stack are clearly separated.
+- **Operational flexibility:** can run with or without Cloudflare/NPM.
+- **Security posture:** internal services (`3000`, `5432`, `6379`) remain unexposed.
+- **Scalability path:** easy to add more apps behind NPM without changing Gitea internals.
+
 ### External Proxy Note
 
 If **Cloudflare** and **NPM** live outside this server, that is perfectly fine—and cleaner, honestly. This server only needs to run:
