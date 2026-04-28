@@ -1,0 +1,66 @@
+# =============================================================================
+# Gitea Stack .gitignore – Prevent sensitive data from being committed
+# =============================================================================
+
+# Environment & Secrets – CRITICAL
+.env
+.env.local
+.env.*.local
+.env.backup
+
+# Data Volumes – Runtime (not source controlled)
+postgres-data/
+gitea-data/
+log/
+backups/
+
+# SSL Certificates & Keys – SENSITIVE
+ssl/
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# Temporary & Cache
+*.tmp
+*.temp
+.temp/
+.cache/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS Files
+.DS_Store
+Thumbs.db
+.directory
+ehthumbs.db
+Desktop.ini
+.AppleDouble
+.LSOverride
+
+# IDE
+*.sublime-project
+*.sublime-workspace
+
+# Git
+.git/
+.gitmodules
+
+# Docker Override
+docker-compose.override.yml
+.dockerignore
+
+# NPM/Development (if using)
+docker-compose-npm.override.yml
+
+# Local Testing
+test-*.yml
+dev-*.yml
+tmp-*.yml
+.local/
+override.env
