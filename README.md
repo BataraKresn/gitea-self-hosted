@@ -26,13 +26,9 @@ Production-ready **single-server** Gitea deployment using Docker Compose with **
 git clone https://github.com/your-org/gitea-stack.git /opt/gitea
 cd /opt/gitea
 
-# 2. Setup environment
-cp .env.example .env
-nano .env
-
-# 3. Start services
-docker compose up -d
-docker compose ps
+# 2. One-shot deploy (recommended)
+chmod +x deploy.sh
+./deploy.sh
 ```
 
 Access after startup:
@@ -40,24 +36,31 @@ Access after startup:
 - **Web via Nginx:** `http://SERVER_IP` or `https://git.example.com`
 - **Git SSH:** `ssh git@SERVER_IP -p 2222`
 
+### Manual mode (optional)
+
+If you prefer step-by-step setup instead of one-shot script:
+
+```bash
+cp .env.example .env
+nano .env
+docker compose up -d
+docker compose ps
+```
+
 ---
 
 ## 🏗️ Architecture
 
 This repository now supports **one official deployment mode only**:
 
-```text
-Client / External Proxy (optional)
-                            ↓
-         Server IP :80 / :443
-                            ↓
-                     Nginx container
-                            ↓
-                Gitea :3000 (internal)
-                     ↙            ↘
- PostgreSQL :5432   Redis :6379
-       (internal)        (internal)
-```
+**Topology Type:** Layered Reverse Proxy Topology (Hybrid)  
+**Also known as:**
+- Layer 1: Cloudflare
+- Layer 2: External NPM
+- Layer 3: App Proxy (Nginx)
+- Application/Data Stack: Gitea + PostgreSQL + Redis
+
+![Three Layer Reverse Proxy Architecture](docs/images/Three-Layer-Reverse-Proxy-Architecture.png)
 
 ### External Proxy Note
 
@@ -181,6 +184,9 @@ More detail: [docs/EXTERNAL-REVERSE-PROXY.md](docs/EXTERNAL-REVERSE-PROXY.md)
 ## 🔧 Common Commands
 
 ```bash
+# One-shot deploy (create runtime dirs + start stack)
+./deploy.sh
+
 # Start / stop / restart
 docker compose up -d
 docker compose down
