@@ -13,6 +13,7 @@ postgres-data/
 gitea-data/
 log/
 backups/
+monitoring/data/
 
 # SSL Certificates & Keys – SENSITIVE
 ssl/

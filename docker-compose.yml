@@ -226,7 +226,7 @@ services:
       start_period: 60s
 
   # ---------------------------------------------------------------------------
-  # Nginx – reverse proxy (only service with public ports 80 & 443)
+  # Nginx – reverse proxy (port 80 only; SSL terminated upstream by NPM/Cloudflare)
   # ---------------------------------------------------------------------------
   nginx:
     image: nginx:1.27-alpine
@@ -237,11 +237,9 @@ services:
         condition: service_healthy
     ports:
       - "0.0.0.0:80:80"
-      - "0.0.0.0:443:443"
     volumes:
       - ./nginx/gitea.conf:/etc/nginx/conf.d/gitea.conf:ro
       - ./nginx/proxy_params.inc:/etc/nginx/conf.d/proxy_params.inc:ro
-      - ./ssl:/etc/nginx/certs:ro
       - ./log/nginx:/var/log/nginx:Z
     networks:
       - gitea-backend
