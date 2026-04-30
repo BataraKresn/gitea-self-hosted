@@ -41,6 +41,11 @@ generate_b64() {
   openssl rand -base64 "$bytes" | tr -d '\n'
 }
 
+generate_hex() {
+  local bytes="$1"
+  openssl rand -hex "$bytes"
+}
+
 ensure_env_secrets() {
   local generated_any=0
 
@@ -70,6 +75,20 @@ ensure_env_secrets() {
       log "Keep existing secret: $key"
     fi
   done
+
+  # Metrics token (hex) for Prometheus endpoint auth
+  local metrics_key metrics_current metrics_new
+  metrics_key="GITEA_METRICS_TOKEN"
+  metrics_current="$(get_env_value "$metrics_key")"
+  if is_placeholder_or_empty "$metrics_current"; then
+    require_cmd openssl
+    metrics_new="$(generate_hex 32)"
+    set_env_value "$metrics_key" "$metrics_new"
+    generated_any=1
+    log "Generated secret for: $metrics_key"
+  else
+    log "Keep existing secret: $metrics_key"
+  fi
 
   if [[ "$generated_any" -eq 1 ]]; then
     warn "Some secrets/passwords were auto-generated and written to .env"

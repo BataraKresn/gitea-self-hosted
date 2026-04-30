@@ -148,6 +148,10 @@ services:
       GITEA__oauth2__JWT_SECRET: ${GITEA_JWT_SECRET}
       GITEA__lfs__PATH: /data/git/lfs
 
+      # -- Metrics (Prometheus) --
+      GITEA__metrics__ENABLED: "true"
+      GITEA__metrics__TOKEN: ${GITEA_METRICS_TOKEN}
+
       # -- Session (Redis) --
       GITEA__session__PROVIDER: redis
       GITEA__session__PROVIDER_CONFIG: "redis://:${REDIS_PASSWORD}@redis:6379/0?pool_size=10"
