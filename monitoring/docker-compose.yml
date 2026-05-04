@@ -1,37 +1,79 @@
-services:
-  node_exporter:
-    image: prom/node-exporter:latest
-    container_name: node_exporter
-    restart: unless-stopped
-    pid: host
-    network_mode: host
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - "--path.procfs=/host/proc"
-      - "--path.sysfs=/host/sys"
-      - "--path.rootfs=/rootfs"
-      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
-      - "--web.listen-address=:9100"
-    labels:
-      - "com.monitoring.service=node_exporter"
+name: monitoring-agent
 
+services:
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
+    image: ${CADVISOR_IMAGE:-ghcr.io/google/cadvisor:0.56.2}
+    container_name: ${CADVISOR_CONTAINER_NAME:-cadvisor}
     restart: unless-stopped
     privileged: true
+
     ports:
-      - "8080:8080"
+      - "${CADVISOR_BIND_IP:-127.0.0.1}:${CADVISOR_PORT:-8192}:8080"
+
+    devices:
+      - /dev/kmsg:/dev/kmsg
+
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+
+    command:
+      - /usr/bin/cadvisor
+      - -logtostderr
+      - -housekeeping_interval=30s
+      - -docker_only=true
+
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk:/dev/disk:ro
-    devices:
-      - /dev/kmsg
-    labels:
-      - "com.monitoring.service=cadvisor"
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -T 5 -O - http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - monitoring-net
+
+  node-exporter:
+    image: ${NODE_EXPORTER_IMAGE:-quay.io/prometheus/node-exporter:v1.11.1}
+    container_name: ${NODE_EXPORTER_CONTAINER_NAME:-node-exporter}
+    restart: unless-stopped
+
+    network_mode: host
+    pid: host
+
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=${NODE_EXPORTER_BIND_IP:-127.0.0.1}:${NODE_EXPORTER_PORT:-8193}
+      - --collector.processes
+      - --collector.interrupts
+      - --path.procfs=/host/proc
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|run|var/lib/docker/.+|var/lib/containerd/.+)($$|/)
+      - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$$
+
+    volumes:
+      - /:/host:ro,rslave
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  monitoring-net:
+    name: monitoring-agent-net
+    driver: bridge
